@@ -52,6 +52,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
+#include <visualization_msgs/Marker.h>
 
 using namespace gtsam;
 bool has_suffix(const std::string &str, const std::string &suffix) {
@@ -241,6 +242,7 @@ private:
     std::vector<wy::KeyFrame*> vpkfs;
     wy::KeyFrameDB* pkfdb;
     // wy::KeyFrame* kf;
+    ros::Publisher loop_pub_;
 
     ORB_SLAM2::ORBVocabulary* porb_vocabulary;
     ORB_SLAM2::ORBextractor* porb_extractor;
@@ -269,6 +271,8 @@ public:
         image_sub_ = it_.subscribe("/kitti/camera_color_left/image_raw", 2, &mapOptimization::imageCallback, this);
         image_pub_ = it_.advertise("/key_frames_image", 2);
         pkfdb = new wy::KeyFrameDB(*orb_vocabulary);
+
+        loop_pub_ = nh.advertise<visualization_msgs::Marker>("/loop_line", 2);
 
     	ISAM2Params parameters;
 		parameters.relinearizeThreshold = 0.01;
@@ -845,6 +849,71 @@ public:
 
         std::cout << "loop id " << closestHistoryFrameID << "  current id" << latestFrameIDLoopCloure << std::endl;
         if(closestHistoryFrameID == -1) return false;
+
+
+        // pub loop marker
+        visualization_msgs::Marker loop_marker;
+        loop_marker.header.frame_id = "camera_init";
+        loop_marker.header.stamp = ros::Time(timeimg);
+
+        loop_marker.ns = "loop";
+        loop_marker.id = 1;
+        loop_marker.type = 4;
+        loop_marker.action = 0;
+        loop_marker.pose.position.x = 0;
+        loop_marker.pose.position.y = 0;
+        loop_marker.pose.position.z = 0;
+        loop_marker.pose.orientation.x = 0;
+        loop_marker.pose.orientation.y = 0;
+        loop_marker.pose.orientation.z = 0;
+        loop_marker.pose.orientation.w = 1;
+
+        loop_marker.scale.x = 1;
+        loop_marker.scale.y = 1;
+        loop_marker.scale.z = 1;
+
+        loop_marker.color.r = 0;
+        loop_marker.color.g = 1;
+        loop_marker.color.b = 0;
+        loop_marker.color.a = 1;
+
+        loop_marker.lifetime = ros::Duration(5.0);
+        geometry_msgs::Point p1, p2;
+        geometry_msgs::Point p3, p4;
+        // p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
+        // p1.y = -cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
+        // p1.z = -cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
+        // p2.x = cloudKeyPoses6D->points[closestHistoryFrameID].z;
+        // p2.y = -cloudKeyPoses6D->points[closestHistoryFrameID].x;
+        // p2.z = -cloudKeyPoses6D->points[closestHistoryFrameID].y;
+        p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
+        p1.y = cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
+        p1.z = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
+        p2.x = cloudKeyPoses6D->points[closestHistoryFrameID].x;
+        p2.y = cloudKeyPoses6D->points[closestHistoryFrameID].y;
+        p2.z = cloudKeyPoses6D->points[closestHistoryFrameID].z;
+        
+        double diffx = p1.x - p2.x;
+        double diffy = p1.y - p2.y;
+        double diffz = p1.z - p2.z;
+
+        // if((diffx * diffx + diffy * diffy + diffz * diffz) > 2500) return false;
+        // p3.x = 10;
+        // p3.y = 10;
+        // p3.z = 10;
+
+        // p4.x = 15;
+        // p4.y = 15;
+        // p4.z = 15;
+
+        loop_marker.points.push_back(p1);
+        loop_marker.points.push_back(p2);
+        // loop_marker.points.push_back(p3);
+        // loop_marker.points.push_back(p4);
+
+
+
+        loop_pub_.publish(loop_marker);
         *latestSurfKeyFrameCloud += *transformPointCloud(cornerCloudKeyFrames[latestFrameIDLoopCloure], &cloudKeyPoses6D->points[latestFrameIDLoopCloure]);
         *latestSurfKeyFrameCloud += *transformPointCloud(surfCloudKeyFrames[latestFrameIDLoopCloure],   &cloudKeyPoses6D->points[latestFrameIDLoopCloure]);
 
@@ -916,11 +985,62 @@ public:
         icp.setInputTarget(nearHistorySurfKeyFrameCloudDS);
         pcl::PointCloud<PointType>::Ptr unused_result(new pcl::PointCloud<PointType>());
         icp.align(*unused_result);
-
+        std::cout << "ssssss icp ::" << icp.getFitnessScore() << std::endl;
         if (icp.hasConverged() == false || icp.getFitnessScore() > historyKeyframeFitnessScore)
             return;
 
         ROS_INFO("add a factor to graph! %f ", icp.getFitnessScore());
+
+        visualization_msgs::Marker loop_marker;
+        loop_marker.header.frame_id = "camera_init";
+        loop_marker.header.stamp = ros::Time(timeimg);
+
+        loop_marker.ns = "loop";
+        loop_marker.id = 2;
+        loop_marker.type = 4;
+        loop_marker.action = 0;
+        loop_marker.pose.position.x = 0;
+        loop_marker.pose.position.y = 0;
+        loop_marker.pose.position.z = 0;
+        loop_marker.pose.orientation.x = 0;
+        loop_marker.pose.orientation.y = 0;
+        loop_marker.pose.orientation.z = 0;
+        loop_marker.pose.orientation.w = 1;
+
+        loop_marker.scale.x = 1;
+        loop_marker.scale.y = 1;
+        loop_marker.scale.z = 1;
+
+        loop_marker.color.r = 1;
+        loop_marker.color.g = 0;
+        loop_marker.color.b = 0;
+        loop_marker.color.a = 1;
+
+        loop_marker.lifetime = ros::Duration();
+        geometry_msgs::Point p1, p2, p3, p4;
+        // p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
+        // p1.y = -cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
+        // p1.z = -cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
+        // p2.x = cloudKeyPoses6D->points[closestHistoryFrameID].z;
+        // p2.y = -cloudKeyPoses6D->points[closestHistoryFrameID].x;
+        // p2.z = -cloudKeyPoses6D->points[closestHistoryFrameID].y;
+        p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
+        p1.y = cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
+        p1.z = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
+        p2.x = cloudKeyPoses6D->points[closestHistoryFrameID].x;
+        p2.y = cloudKeyPoses6D->points[closestHistoryFrameID].y;
+        p2.z = cloudKeyPoses6D->points[closestHistoryFrameID].z;
+        // p3.x = 10;
+        // p3.y = 10;
+        // p3.z = 10;
+
+        // p4.x = 15;
+        // p4.y = 15;
+        // p4.z = 15;
+
+        loop_marker.points.push_back(p1);
+        loop_marker.points.push_back(p2);
+        loop_pub_.publish(loop_marker);
 	// publish corrected cloud
         if (pubIcpKeyFrames.getNumSubscribers() != 0){
             pcl::PointCloud<PointType>::Ptr closed_cloud(new pcl::PointCloud<PointType>());
