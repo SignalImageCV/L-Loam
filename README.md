@@ -13,3 +13,10 @@ __with loop closing__
 > Display the loop closure,  green for wrong, red for true.
 
 ![](./pics/3.png)
+
+
+## save map and trajectory
+> test kitti sequence 05
+
+![](./pics/4.png)
+![](./pics/5.png)

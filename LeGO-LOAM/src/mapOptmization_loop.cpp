@@ -750,6 +750,9 @@ public:
             rate.sleep();
             publishGlobalMap();
         }
+
+        pcl::io::savePCDFileASCII(fileDirectory + "finalCloud.pcd", *globalMapKeyFramesDS);
+        pcl::io::savePCDFileASCII(fileDirectory + "trajectory.pcd", *cloudKeyPoses3D);
     }
 
     void publishGlobalMap(){
@@ -879,13 +882,6 @@ public:
 
         loop_marker.lifetime = ros::Duration(5.0);
         geometry_msgs::Point p1, p2;
-        geometry_msgs::Point p3, p4;
-        // p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
-        // p1.y = -cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
-        // p1.z = -cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
-        // p2.x = cloudKeyPoses6D->points[closestHistoryFrameID].z;
-        // p2.y = -cloudKeyPoses6D->points[closestHistoryFrameID].x;
-        // p2.z = -cloudKeyPoses6D->points[closestHistoryFrameID].y;
         p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
         p1.y = cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
         p1.z = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
@@ -977,11 +973,6 @@ public:
         icp.setRANSACIterations(0);
 	// Align clouds
         icp.setInputSource(latestSurfKeyFrameCloud);
-
-       
-
-        
-
         icp.setInputTarget(nearHistorySurfKeyFrameCloudDS);
         pcl::PointCloud<PointType>::Ptr unused_result(new pcl::PointCloud<PointType>());
         icp.align(*unused_result);
@@ -992,7 +983,7 @@ public:
         ROS_INFO("add a factor to graph! %f ", icp.getFitnessScore());
 
         visualization_msgs::Marker loop_marker;
-        loop_marker.header.frame_id = "camera_init";
+        loop_marker.header.frame_id = "map";
         loop_marker.header.stamp = ros::Time(timeimg);
 
         loop_marker.ns = "loop";
@@ -1018,18 +1009,18 @@ public:
 
         loop_marker.lifetime = ros::Duration();
         geometry_msgs::Point p1, p2, p3, p4;
-        // p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
-        // p1.y = -cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
-        // p1.z = -cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
-        // p2.x = cloudKeyPoses6D->points[closestHistoryFrameID].z;
-        // p2.y = -cloudKeyPoses6D->points[closestHistoryFrameID].x;
-        // p2.z = -cloudKeyPoses6D->points[closestHistoryFrameID].y;
-        p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
-        p1.y = cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
-        p1.z = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
-        p2.x = cloudKeyPoses6D->points[closestHistoryFrameID].x;
-        p2.y = cloudKeyPoses6D->points[closestHistoryFrameID].y;
-        p2.z = cloudKeyPoses6D->points[closestHistoryFrameID].z;
+        p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
+        p1.y = cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
+        p1.z = cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
+        p2.x = cloudKeyPoses6D->points[closestHistoryFrameID].z;
+        p2.y = cloudKeyPoses6D->points[closestHistoryFrameID].x;
+        p2.z = cloudKeyPoses6D->points[closestHistoryFrameID].y;
+        // p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
+        // p1.y = cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
+        // p1.z = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
+        // p2.x = cloudKeyPoses6D->points[closestHistoryFrameID].x;
+        // p2.y = cloudKeyPoses6D->points[closestHistoryFrameID].y;
+        // p2.z = cloudKeyPoses6D->points[closestHistoryFrameID].z;
         // p3.x = 10;
         // p3.y = 10;
         // p3.z = 10;

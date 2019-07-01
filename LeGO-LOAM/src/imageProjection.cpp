@@ -209,12 +209,19 @@ public:
             // find the row and column index in the iamge for this point
             verticalAngle = atan2(thisPoint.z, sqrt(thisPoint.x * thisPoint.x + thisPoint.y * thisPoint.y)) * 180 / M_PI;
             rowIdn = (verticalAngle + ang_bottom) / ang_res_y;
-            if (rowIdn < 0 || rowIdn >= N_SCAN)
-            // if (rowIdn <= 0 || rowIdn > 64 || rowIdn%4 != 0)
+
+            // for 64->16 
+            // if (rowIdn < 0 || rowIdn >= N_SCAN)
+            if (rowIdn <= 0 || rowIdn > 64 || rowIdn%4 != 0)
             // if (rowIdn < 0 || rowIdn >= 16)
                 continue;
 
-                // rowIdn = rowIdn/ 4 - 1;
+                rowIdn = rowIdn/ 4 - 1;
+
+            // 64 
+            // if (rowIdn < 0 || rowIdn >= N_SCAN)
+            //     continue;
+
             horizonAngle = atan2(thisPoint.x, thisPoint.y) * 180 / M_PI;
 
             columnIdn = -round((horizonAngle-90.0)/ang_res_x) + Horizon_SCAN/2;
