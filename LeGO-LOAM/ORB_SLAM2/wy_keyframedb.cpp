@@ -163,6 +163,7 @@ namespace wy
 
         int nscores = 0;
         float bestscore = 0;
+        float second_bestscore = 0;
         int bestinx = -1;
         // Compute similarity score. Retain the matches whose score is higher than minScore
         for(list<KeyFrame*>::iterator lit = lKFsSharingWords.begin(); lit!=lKFsSharingWords.end(); lit++)
@@ -183,9 +184,15 @@ namespace wy
                         bestscore = si;
                         bestinx = pKFi->mnId;
                     }
+                    else if(si > second_bestscore)
+                    {
+                        second_bestscore = si;
+                    }
                 }
             }
         }
+
+        if(lKFsSharingWords.size() > 1 && bestscore < 1.1 * second_bestscore) return -1;
 
         // cout << "lScoreAndMatch" << lScoreAndMatch.size() << std::endl;
 

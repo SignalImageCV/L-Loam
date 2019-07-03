@@ -53,6 +53,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <visualization_msgs/Marker.h>
+#include <fstream>
 
 using namespace gtsam;
 bool has_suffix(const std::string &str, const std::string &suffix) {
@@ -751,8 +752,33 @@ public:
             publishGlobalMap();
         }
 
-        pcl::io::savePCDFileASCII(fileDirectory + "finalCloud.pcd", *globalMapKeyFramesDS);
+        globalMapKeyFrames->clear();
+
+        std::cout << cornerCloudKeyFrames.size() << std::endl;
+        std::cout << cloudKeyPoses3D->points.size() << std::endl;
+        std::cout << cloudKeyPoses6D->points.size() << std::endl;
+
+        for (int i = 0; i < cloudKeyPoses6D->points.size(); ++i){
+			*globalMapKeyFrames += *transformPointCloud(cornerCloudKeyFrames[i],   &cloudKeyPoses6D->points[i]);
+			*globalMapKeyFrames += *transformPointCloud(surfCloudKeyFrames[i],    &cloudKeyPoses6D->points[i]);
+			*globalMapKeyFrames += *transformPointCloud(outlierCloudKeyFrames[i], &cloudKeyPoses6D->points[i]);
+        }
+        pcl::io::savePCDFileASCII(fileDirectory + "finalCloud.pcd", *globalMapKeyFrames);
         pcl::io::savePCDFileASCII(fileDirectory + "trajectory.pcd", *cloudKeyPoses3D);
+
+        std::ofstream of(fileDirectory + "trajectory.txt");
+        for(int i = 0; i < cloudKeyPoses6D->size(); i++)
+        {
+            of << cloudKeyPoses6D->points[i].x << " ";
+            of << cloudKeyPoses6D->points[i].y << " ";
+            of << cloudKeyPoses6D->points[i].z << " ";
+            of << cloudKeyPoses6D->points[i].intensity << " ";
+            of << cloudKeyPoses6D->points[i].roll << " ";
+            of << cloudKeyPoses6D->points[i].pitch << " ";
+            of << cloudKeyPoses6D->points[i].yaw << " ";
+            of << cloudKeyPoses6D->points[i].time << std::endl;
+        }
+        std::cout << "save successful" << std::endl;
     }
 
     void publishGlobalMap(){
@@ -798,7 +824,7 @@ public:
         globalMapKeyPoses->clear();
         globalMapKeyPosesDS->clear();
         globalMapKeyFrames->clear();
-        // globalMapKeyFramesDS->clear();     
+        globalMapKeyFramesDS->clear();     
     }
 
     void loopClosureThread(){
@@ -831,23 +857,23 @@ public:
         wy::KeyFrame* kf = pcurrkf;
         latestFrameIDLoopCloure = kf->mnId;
 
-        // int startidx = std::max(0, latestFrameIDLoopCloure - 5);
+        int startidx = std::max(0, latestFrameIDLoopCloure - 5);
         // //  std::cout << "  startidx " << startidx << std::endl;
-        // int endidx = std::min((int)vpkfs.size(), latestFrameIDLoopCloure + 5);
+        int endidx = std::min((int)vpkfs.size(), latestFrameIDLoopCloure + 5);
 
-        float minscore = 0.01;
-        // for(int i = startidx; i < endidx; i++)
-        // {
-        // //  std::cout << "  startidx iiiii " << i << std::endl;
+        float minscore = 100;
+        for(int i = startidx; i < endidx; i++)
+        {
+        //  std::cout << "  startidx iiiii " << i << std::endl;
 
-        //     float score = porb_vocabulary->score(kf->bow_vec_, vpkfs[i]->bow_vec_);
-        //     // float score = pcurrkf->computeScoreByBow(*vpkfs[i]);
-        //     if(score < minscore) minscore = score;
-        // }
+            float score = porb_vocabulary->score(kf->bow_vec_, vpkfs[i]->bow_vec_);
+            // float score = pcurrkf->computeScoreByBow(*vpkfs[i]);
+            if(score < minscore) minscore = score;
+        }
 
 
         // std::cout << "minscore" << minscore << "   " <<  minscore * 0.8 << std::endl;
-        closestHistoryFrameID = pkfdb->DetectLoopCandidates(kf, minscore * 0.8, true);
+        closestHistoryFrameID = pkfdb->DetectLoopCandidates(kf, minscore, true);
         // std::cout << " pkfdb->DetectLoopCandidates over" << std::endl;
 
         std::cout << "loop id " << closestHistoryFrameID << "  current id" << latestFrameIDLoopCloure << std::endl;
@@ -893,21 +919,10 @@ public:
         double diffy = p1.y - p2.y;
         double diffz = p1.z - p2.z;
 
-        // if((diffx * diffx + diffy * diffy + diffz * diffz) > 2500) return false;
-        // p3.x = 10;
-        // p3.y = 10;
-        // p3.z = 10;
-
-        // p4.x = 15;
-        // p4.y = 15;
-        // p4.z = 15;
+        // if((diffx * diffx + diffz * diffz) > historyKeyframeSearchRadius * historyKeyframeSearchRadius) return false;
 
         loop_marker.points.push_back(p1);
         loop_marker.points.push_back(p2);
-        // loop_marker.points.push_back(p3);
-        // loop_marker.points.push_back(p4);
-
-
 
         loop_pub_.publish(loop_marker);
         *latestSurfKeyFrameCloud += *transformPointCloud(cornerCloudKeyFrames[latestFrameIDLoopCloure], &cloudKeyPoses6D->points[latestFrameIDLoopCloure]);
@@ -966,8 +981,8 @@ public:
         potentialLoopFlag = false;
 	// ICP Settings
         pcl::IterativeClosestPoint<PointType, PointType> icp;
-        icp.setMaxCorrespondenceDistance(100);
-        icp.setMaximumIterations(100);
+        icp.setMaxCorrespondenceDistance(100);//100
+        icp.setMaximumIterations(200);
         icp.setTransformationEpsilon(1e-6);
         icp.setEuclideanFitnessEpsilon(1e-6);
         icp.setRANSACIterations(0);
@@ -976,7 +991,8 @@ public:
         icp.setInputTarget(nearHistorySurfKeyFrameCloudDS);
         pcl::PointCloud<PointType>::Ptr unused_result(new pcl::PointCloud<PointType>());
         icp.align(*unused_result);
-        std::cout << "ssssss icp ::" << icp.getFitnessScore() << std::endl;
+        std::cout << "ssssss icp ::" << icp.getFitnessScore() <<  "iterations: ";
+        std::cout << icp.getMaximumIterations() << std::endl;
         if (icp.hasConverged() == false || icp.getFitnessScore() > historyKeyframeFitnessScore)
             return;
 

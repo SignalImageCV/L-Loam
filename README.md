@@ -20,3 +20,19 @@ __with loop closing__
 
 ![](./pics/4.png)
 ![](./pics/5.png)
+
+## Update loop detection strategy and save map without downsample
+
+## More example 
+
+#### map from topdown
+![loop](./pics/l1.png)
+![odom](./pics/o1.png)
+
+#### map from side
+![loop](./pics/l2.png)
+![odom](./pics/o2.png)
+
+#### trajectory
+![loop](./pics/l3.png)
+![odom](./pics/o3.png)
