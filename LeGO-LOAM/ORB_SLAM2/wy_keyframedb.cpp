@@ -128,7 +128,7 @@ namespace wy
                 {
                     pKFi->mnLoopWords = -1;// 共同word的数量
                     // 不需要相邻帧
-                    if(abs((int)pKFi->mnId - (int)pKF->mnId) > 10)
+                    if(abs((int)pKFi->mnId - (int)pKF->mnId) > 10)//10
                     {
                         pKFi->mnLoopQuery = pKF->mnId;
                         // std::cout << "pKFi->mnLoopQuery = pKF->mnId;" <<std::endl;

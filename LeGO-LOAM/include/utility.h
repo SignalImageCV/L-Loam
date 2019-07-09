@@ -51,6 +51,9 @@ using namespace std;
 typedef pcl::PointXYZI  PointType;
 
 extern const string pointCloudTopic = "/kitti/velo/pointcloud";
+extern const string imageTopic = "/kitti/camera_color_left/image_raw";
+// extern const string imageTopic = "/camera/image_left";
+// extern const string pointCloudTopic = "/velodyne_points";
 extern const string imuTopic = "/imu/data";
 
 // Save pcd
@@ -99,7 +102,7 @@ extern const int imuQueLength = 200;
 
 extern const float sensorMountAngle = 0.0;
 extern const float segmentTheta = 60.0/180.0*M_PI; // decrese this value may improve accuracy
-extern const int segmentValidPointNum = 5;
+extern const int segmentValidPointNum = 5;//5
 extern const int segmentValidLineNum = 0; //3
 extern const float segmentAlphaX = ang_res_x / 180.0 * M_PI;
 extern const float segmentAlphaY = ang_res_y / 180.0 * M_PI;
@@ -112,14 +115,13 @@ extern const float edgeThreshold = 0.1;// 0.1
 extern const float surfThreshold = 0.1;
 extern const float nearestFeatureSearchSqDist = 25;
 
-
 // Mapping Params
 extern const float surroundingKeyframeSearchRadius = 50.0; // key frame that is within n meters from current pose will be considerd for scan-to-map optimization (when loop closure disabled)
 extern const int   surroundingKeyframeSearchNum = 25; // submap size (when loop closure enabled)
 // history key frames (history submap for loop closure)
 extern const float historyKeyframeSearchRadius = 40; // key frame that is within n meters from current pose will be considerd for loop closure
-extern const int   historyKeyframeSearchNum = 10;//25 // 2n+1 number of hostory key frames will be fused into a submap for loop closure
-extern const float historyKeyframeFitnessScore = 1; // the smaller the better alignment
+extern const int   historyKeyframeSearchNum = 7;//25 // 2n+1 number of hostory key frames will be fused into a submap for loop closure
+extern const float historyKeyframeFitnessScore = 0.5; // the smaller the better alignment //1
 
 extern const float globalMapVisualizationSearchRadius = 800.0; // key frames with in n meters will be visualized
 

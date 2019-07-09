@@ -19,7 +19,6 @@ __with loop closing__
 > test kitti sequence 05
 
 ![](./pics/4.png)
-![](./pics/5.png)
 
 ## Update loop detection strategy and save map without downsample
 
@@ -35,4 +34,9 @@ __with loop closing__
 
 #### trajectory
 ![loop](./pics/l3.png)
-![odom](./pics/o3.png)
+
+
+## save corner_map & surf_map
+## save gps 
+https://www.gpsvisualizer.com/
+![](./pics/gps.png)

@@ -60,7 +60,7 @@ target_link_libraries(featureAssociation ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${
 # add_executable(mapOptmization src/mapOptmization.cpp)
 # target_link_libraries(mapOptmization ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam)
 
-add_executable(mapOptmization src/mapOptmization_loop.cpp ORB_SLAM2/wy_keyframedb.cpp ORB_SLAM2/wy_keyframe.cpp)
+add_executable(mapOptmization src/mapOptmization_loop_gps.cpp ORB_SLAM2/wy_keyframedb.cpp ORB_SLAM2/wy_keyframe.cpp)
 target_link_libraries(mapOptmization ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam /home/yingwang/ros_ws/orb_ws/src/ORB_SLAM2/lib/libORB_SLAM2.so
 /home/yingwang/ros_ws/orb_ws/src/ORB_SLAM2/Thirdparty/DBoW2/lib/libDBoW2.so
 )

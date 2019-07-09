@@ -55,6 +55,8 @@
 #include <visualization_msgs/Marker.h>
 #include <fstream>
 
+#include <sensor_msgs/NavSatFix.h>
+
 using namespace gtsam;
 bool has_suffix(const std::string &str, const std::string &suffix) {
   std::size_t index = str.find(suffix, str.size() - suffix.size());
@@ -245,8 +247,14 @@ private:
     // wy::KeyFrame* kf;
     ros::Publisher loop_pub_;
 
+    ros::Subscriber gps_sub;
+    bool newgps;
+    double latitude, longtitude, alt;
+    std::ofstream gps_p;
+
     ORB_SLAM2::ORBVocabulary* porb_vocabulary;
     ORB_SLAM2::ORBextractor* porb_extractor;
+
 
 public:
 
@@ -262,6 +270,13 @@ public:
         newimg = true;
     }
     
+    void GPSCallback(const sensor_msgs::NavSatFixConstPtr& gps_msg)
+    {
+        latitude = gps_msg->latitude;
+        longtitude = gps_msg->longitude;
+        alt = gps_msg->altitude;
+        newgps=true;
+    }
 
     mapOptimization(ORB_SLAM2::ORBVocabulary* orb_vocabulary, ORB_SLAM2::ORBextractor* orb_extractor):
         nh("~")
@@ -274,6 +289,10 @@ public:
         pkfdb = new wy::KeyFrameDB(*orb_vocabulary);
 
         loop_pub_ = nh.advertise<visualization_msgs::Marker>("loop_line", 2);
+
+        gps_sub = nh.subscribe("/kitti/oxts/gps/fix", 2, &mapOptimization::GPSCallback, this);
+        gps_p.open(fileDirectory + "gps.txt");
+        gps_p << "type,latitude,longitude,alt"<<std::endl;
 
     	ISAM2Params parameters;
 		parameters.relinearizeThreshold = 0.01;
@@ -1631,6 +1650,12 @@ public:
             }
             // std::cout << testnum++ << std::endl;
 
+        }
+
+        if(newgps)
+        {
+            gps_p <<"T," << latitude << "," << longtitude <<","<<alt << std::endl;
+            newgps = false;
         }
     }
 
