@@ -24,7 +24,8 @@ namespace wy{
     void KeyFrame::computeBoW()
     {
         std::vector<cv::Mat> current_desp = ORB_SLAM2::Converter::toDescriptorVector(desp_);
-        p_orb_vocabulary_->transform(current_desp, bow_vec_, feature_vector_, 4);
+        // p_orb_vocabulary_->transform(current_desp, bow_vec_, feature_vector_, 4);
+        p_orb_vocabulary_->transform(current_desp, bow_vec_);
     }
 
     double KeyFrame::computeScoreByBow(const KeyFrame& kf)

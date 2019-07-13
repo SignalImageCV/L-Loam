@@ -55,6 +55,7 @@ extern const string imageTopic = "/kitti/camera_color_left/image_raw";
 // extern const string imageTopic = "/camera/image_left";
 // extern const string pointCloudTopic = "/velodyne_points";
 extern const string imuTopic = "/imu/data";
+extern const string gpsTopic = "/kitti/oxts/gps/fix";
 
 // Save pcd
 extern const string fileDirectory = "/home/yingwang/map/";
@@ -102,7 +103,7 @@ extern const int imuQueLength = 200;
 
 extern const float sensorMountAngle = 0.0;
 extern const float segmentTheta = 60.0/180.0*M_PI; // decrese this value may improve accuracy
-extern const int segmentValidPointNum = 5;//5
+extern const int segmentValidPointNum = 3;//5
 extern const int segmentValidLineNum = 0; //3
 extern const float segmentAlphaX = ang_res_x / 180.0 * M_PI;
 extern const float segmentAlphaY = ang_res_y / 180.0 * M_PI;

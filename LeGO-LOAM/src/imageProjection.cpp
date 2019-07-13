@@ -28,6 +28,12 @@
 
 #include "utility.h"
 
+// #define SAVE_EVERY_SACN
+
+#ifdef SAVE_EVERY_SACN
+    #include <pcl-1.7/pcl/io/pcd_io.h>
+    int kframeid = 1;
+#endif
 
 class ImageProjection{
 private:
@@ -491,6 +497,11 @@ public:
             laserCloudTemp.header.frame_id = "base_link";
             pubFullInfoCloud.publish(laserCloudTemp);
         }
+
+        #ifdef SAVE_EVERY_SACN
+        std::cout << "------- " << kframeid << " -------------" << std::endl;
+        pcl::io::savePCDFileBinary("/media/yingwang/DATADisk/dp" + to_string(kframeid++) + ".pcd", *fullCloud);
+        #endif 
     }
 };
 

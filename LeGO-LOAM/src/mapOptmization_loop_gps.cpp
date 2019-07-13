@@ -56,6 +56,7 @@
 #include <fstream>
 
 #include <sensor_msgs/NavSatFix.h>
+#include <nav_msgs/Path.h>
 
 using namespace gtsam;
 bool has_suffix(const std::string &str, const std::string &suffix) {
@@ -255,6 +256,9 @@ private:
     ORB_SLAM2::ORBVocabulary* porb_vocabulary;
     ORB_SLAM2::ORBextractor* porb_extractor;
 
+    ros::Publisher path_pub;
+    nav_msgs::Path path_msg;
+
 
 public:
 
@@ -289,8 +293,9 @@ public:
         pkfdb = new wy::KeyFrameDB(*orb_vocabulary);
 
         loop_pub_ = nh.advertise<visualization_msgs::Marker>("loop_line", 2);
+        path_pub = nh.advertise<nav_msgs::Path>("robot_path", 2);
 
-        gps_sub = nh.subscribe("/kitti/oxts/gps/fix", 2, &mapOptimization::GPSCallback, this);
+        gps_sub = nh.subscribe(gpsTopic, 2, &mapOptimization::GPSCallback, this);
         gps_p.open(fileDirectory + "gps.txt");
         gps_p << "type,latitude,longitude,alt"<<std::endl;
 
@@ -762,6 +767,14 @@ public:
             cloudMsgTemp.header.frame_id = "/camera_init";
             pubRecentKeyFrames.publish(cloudMsgTemp);
         }
+
+        if(path_pub.getNumSubscribers() != 0)
+        {
+            path_msg.header.stamp = ros::Time().fromSec(timeLaserOdometry);
+            path_msg.header.frame_id = "/camera_init";
+            path_pub.publish(path_msg);
+
+        }
     }
 
     void visualizeGlobalMapThread(){
@@ -925,7 +938,7 @@ public:
 
         // pub loop marker
         visualization_msgs::Marker loop_marker;
-        loop_marker.header.frame_id = "camera_init";
+        loop_marker.header.frame_id = "/camera_init";
         loop_marker.header.stamp = ros::Time(timeimg);
 
         loop_marker.ns = "loop";
@@ -945,11 +958,11 @@ public:
         loop_marker.scale.z = 1;
 
         loop_marker.color.r = 0;
-        loop_marker.color.g = 1;
-        loop_marker.color.b = 0;
+        loop_marker.color.g = 0;
+        loop_marker.color.b = 1;
         loop_marker.color.a = 1;
 
-        loop_marker.lifetime = ros::Duration(5.0);
+        loop_marker.lifetime = ros::Duration(3.0);
         geometry_msgs::Point p1, p2;
         p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
         p1.y = cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
@@ -1032,10 +1045,29 @@ public:
 	// Align clouds
         icp.setInputSource(latestSurfKeyFrameCloud);
         icp.setInputTarget(nearHistorySurfKeyFrameCloudDS);
+
+        // Eigen::Matrix4f guess = Eigen::Matrix4f::Identity();
+        // PointTypePose t_prev = cloudKeyPoses6D->points[closestHistoryFrameID];
+        // tf::Quaternion q_prev = tf::createQuaternionFromRPY(t_prev.roll, t_prev.pitch, t_prev.yaw);
+        // Eigen::Quaternionf q(q_prev.w(), q_prev.x(), q_prev.y(), q_prev.z());
+        // Eigen::Matrix4f prev = Eigen::Matrix4f::Identity();
+        // prev.block<3,3>(0, 0) = q.matrix();
+        // prev.block<3,1>(0, 3) = Eigen::Vector3f(t_prev.x, t_prev.y, t_prev.z);
+
+        // PointTypePose t_curr = cloudKeyPoses6D->points[latestFrameIDLoopCloure];
+        // tf::Quaternion q_curr = tf::createQuaternionFromRPY(t_curr.roll, t_curr.pitch, t_curr.yaw);
+        // Eigen::Quaternionf q_c(q_curr.w(), q_curr.x(), q_curr.y(), q_curr.z());
+        // Eigen::Matrix4f curr = Eigen::Matrix4f::Identity();
+        // curr.block<3,3>(0, 0) = q_c.matrix();
+        // curr.block<3,1>(0, 3) = Eigen::Vector3f(t_curr.x, t_curr.y, t_curr.z);
+
+        // guess = prev.inverse() * curr;
+
         pcl::PointCloud<PointType>::Ptr unused_result(new pcl::PointCloud<PointType>());
+        // icp.align(*unused_result, guess);
         icp.align(*unused_result);
-        std::cout << "ssssss icp ::" << icp.getFitnessScore() <<  "iterations: ";
-        std::cout << icp.getMaximumIterations() << std::endl;
+        std::cout << "ssssss icp ::" << icp.getFitnessScore()<< std::endl;
+        // std::cout << icp.getMaximumIterations() << std::endl;
         if (icp.hasConverged() == false || icp.getFitnessScore() > historyKeyframeFitnessScore)
             return;
 
@@ -1067,7 +1099,7 @@ public:
         loop_marker.color.a = 1;
 
         loop_marker.lifetime = ros::Duration();
-        geometry_msgs::Point p1, p2, p3, p4;
+        geometry_msgs::Point p1, p2;
         p1.x = cloudKeyPoses6D->points[latestFrameIDLoopCloure].z;
         p1.y = cloudKeyPoses6D->points[latestFrameIDLoopCloure].x;
         p1.z = cloudKeyPoses6D->points[latestFrameIDLoopCloure].y;
@@ -1600,6 +1632,35 @@ public:
         thisPose6D.yaw   = latestEstimate.rotation().roll(); // in camera frame
         thisPose6D.time = timeLaserOdometry;
         cloudKeyPoses6D->push_back(thisPose6D);
+
+        // nav_msgs::Path
+
+        geometry_msgs::PoseStamped curr_pose;
+        curr_pose.header.frame_id = "/camera";
+        curr_pose.pose.position.x = thisPose6D.x;
+        curr_pose.pose.position.y = thisPose6D.y;
+        curr_pose.pose.position.z = thisPose6D.z;
+
+        // geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw
+        //                           (thisPose6D.yaw, -thisPose6D.roll, -thisPose6D.pitch);
+        Rot3 r1 = Rot3::Rx(thisPose6D.roll);
+        Rot3 r2 = Rot3::Ry(thisPose6D.pitch);
+        Rot3 r3 = Rot3::Rz(thisPose6D.yaw);
+        curr_pose.header.stamp = ros::Time().fromSec(timeLaserOdometry);
+        // Rot3 r = r2*r1*r3;
+        // Rot3 rr = r2*r1*r3;
+        Rot3 r  = r2 * r1 * r3;
+        Quaternion q(r.matrix());
+        // Quaternion qq(rr.matrix());
+        // std::cout << q1.x() << " " <<-q1.z() << " " <<q1.x() << " "<<q1.w() <<std::endl;
+        // std::cout << q.coeffs ()  << std::endl;
+        // std::cout << qq.coeffs ()  << std::endl;
+        curr_pose.pose.orientation.x = q.x();
+        curr_pose.pose.orientation.y = q.y();
+        curr_pose.pose.orientation.z = q.z();
+        curr_pose.pose.orientation.w = q.w();
+
+        path_msg.poses.push_back(curr_pose);
 	/**
          * save updated transform
          */
@@ -1666,6 +1727,9 @@ public:
             recentOutlierCloudKeyFrames.clear();
 	    // update key poses
             int numPoses = isamCurrentEstimate.size();
+
+        path_msg.poses.clear();
+
 	    for (int i = 0; i < numPoses; ++i){
 		cloudKeyPoses3D->points[i].x = isamCurrentEstimate.at<Pose3>(i).translation().y();
 		cloudKeyPoses3D->points[i].y = isamCurrentEstimate.at<Pose3>(i).translation().z();
@@ -1677,7 +1741,22 @@ public:
 		cloudKeyPoses6D->points[i].roll  = isamCurrentEstimate.at<Pose3>(i).rotation().pitch();
 		cloudKeyPoses6D->points[i].pitch = isamCurrentEstimate.at<Pose3>(i).rotation().yaw();
 		cloudKeyPoses6D->points[i].yaw   = isamCurrentEstimate.at<Pose3>(i).rotation().roll();
-	    }
+	    PointTypePose thisPose6D = cloudKeyPoses6D->points[i];
+
+        geometry_msgs::PoseStamped curr_pose;
+        curr_pose.header.frame_id = "/camera_init";
+        curr_pose.pose.position.x = thisPose6D.x;
+        curr_pose.pose.position.y = thisPose6D.y;
+        curr_pose.pose.position.z = thisPose6D.z;
+
+        tf::Quaternion quat = tf::createQuaternionFromRPY(thisPose6D.pitch, thisPose6D.roll, thisPose6D.yaw);
+        curr_pose.pose.orientation.x = quat.x();
+        curr_pose.pose.orientation.y = quat.y();
+        curr_pose.pose.orientation.z = quat.z();
+        curr_pose.pose.orientation.w = quat.w();
+
+        path_msg.poses.push_back(curr_pose);
+        }
 
 	    aLoopIsClosed = false;
         }
