@@ -217,13 +217,13 @@ public:
             rowIdn = (verticalAngle + ang_bottom) / ang_res_y;
 
             // for 64->16 
-            if (rowIdn <= 0 || rowIdn > 64 || rowIdn%4 != 0)
-                continue;
-            rowIdn = rowIdn/ 4 - 1;
+            // if (rowIdn <= 0 || rowIdn > 64 || rowIdn%4 != 0)
+            //     continue;
+            // rowIdn = rowIdn/ 4 - 1;
 
             // 64 
-            // if (rowIdn < 0 || rowIdn >= N_SCAN)
-            //     continue;
+            if (rowIdn < 0 || rowIdn >= N_SCAN)
+                continue;
 
             horizonAngle = atan2(thisPoint.x, thisPoint.y) * 180 / M_PI;
 
@@ -500,7 +500,7 @@ public:
 
         #ifdef SAVE_EVERY_SACN
         std::cout << "------- " << kframeid << " -------------" << std::endl;
-        pcl::io::savePCDFileBinary("/media/yingwang/DATADisk/dp" + to_string(kframeid++) + ".pcd", *fullCloud);
+        pcl::io::savePCDFileBinary("/media/yingwang/DATADisk/dp/dp" + to_string(kframeid++) + ".pcd", *fullCloud);
         #endif 
     }
 };

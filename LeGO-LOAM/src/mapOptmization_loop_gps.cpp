@@ -58,6 +58,8 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <nav_msgs/Path.h>
 
+#include <Eigen/Dense>
+
 using namespace gtsam;
 bool has_suffix(const std::string &str, const std::string &suffix) {
   std::size_t index = str.find(suffix, str.size() - suffix.size());
@@ -259,7 +261,12 @@ private:
     ros::Publisher path_pub;
     nav_msgs::Path path_msg;
 
+    ros::Subscriber cloud_to_save_sub;
+    pcl::PointCloud<PointType>::Ptr cloud_to_save;
+    bool newcloudsave = false;
+    int current_frame_id = 1; // save pose with frame id 
 
+    std::vector<std::pair<int, int>> loop_buffers;
 public:
 
     void imageCallback(const sensor_msgs::ImageConstPtr& msg)
@@ -282,6 +289,13 @@ public:
         newgps=true;
     }
 
+    void fullcloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
+    {
+        cloud_to_save->clear();
+        pcl::fromROSMsg(*msg, *cloud_to_save);
+        newcloudsave = true;
+    }
+
     mapOptimization(ORB_SLAM2::ORBVocabulary* orb_vocabulary, ORB_SLAM2::ORBextractor* orb_extractor):
         nh("~")
     {
@@ -294,6 +308,10 @@ public:
 
         loop_pub_ = nh.advertise<visualization_msgs::Marker>("loop_line", 2);
         path_pub = nh.advertise<nav_msgs::Path>("robot_path", 2);
+
+        // cloud_to_save_sub = nh.subscribe("/full_cloud_info", 2, &mapOptimization::fullcloudCallback, this);
+        cloud_to_save.reset(new pcl::PointCloud<PointType>());
+
 
         gps_sub = nh.subscribe(gpsTopic, 2, &mapOptimization::GPSCallback, this);
         gps_p.open(fileDirectory + "gps.txt");
@@ -778,7 +796,7 @@ public:
     }
 
     void visualizeGlobalMapThread(){
-        ros::Rate rate(1);
+        ros::Rate rate(0.2);
         while (ros::ok()){
             rate.sleep();
             publishGlobalMap();
@@ -825,10 +843,19 @@ public:
         globalMapKeyFrames->clear();
 
 
+        pcl::PointCloud<PointType>::Ptr keyframe_cloud(new pcl::PointCloud<PointType>);
+
         for (int i = 0; i < cloudKeyPoses6D->points.size(); ++i){
-			*globalMapKeyFrames += *transformPointCloud(cornerCloudKeyFrames[i],   &cloudKeyPoses6D->points[i]);
-			*globalMapKeyFrames += *transformPointCloud(surfCloudKeyFrames[i],    &cloudKeyPoses6D->points[i]);
-			*globalMapKeyFrames += *transformPointCloud(outlierCloudKeyFrames[i], &cloudKeyPoses6D->points[i]);
+
+            keyframe_cloud->clear();
+            *keyframe_cloud += *cornerCloudKeyFrames[i];
+            *keyframe_cloud += *surfCloudKeyFrames[i];
+            *keyframe_cloud += *outlierCloudKeyFrames[i];
+            // pcl::io::savePCDFileBinary(fileDirectory+"keyframes/" + std::to_string(i) + ".pcd", *keyframe_cloud);
+
+			// *globalMapKeyFrames += *transformPointCloud(cornerCloudKeyFrames[i],   &cloudKeyPoses6D->points[i]);
+			// *globalMapKeyFrames += *transformPointCloud(surfCloudKeyFrames[i],    &cloudKeyPoses6D->points[i]);
+			*globalMapKeyFrames += *transformPointCloud(keyframe_cloud, &cloudKeyPoses6D->points[i]);
         }
         pcl::io::savePCDFileBinary(fileDirectory + "finalCloud.pcd", *globalMapKeyFrames);
         std::cout << "finalCloud save successful" << std::endl;
@@ -939,7 +966,7 @@ public:
         // pub loop marker
         visualization_msgs::Marker loop_marker;
         loop_marker.header.frame_id = "/camera_init";
-        loop_marker.header.stamp = ros::Time(timeimg);
+        loop_marker.header.stamp = ros::Time::now();
 
         loop_marker.ns = "loop";
         loop_marker.id = 1;
@@ -1038,7 +1065,7 @@ public:
 	// ICP Settings
         pcl::IterativeClosestPoint<PointType, PointType> icp;
         icp.setMaxCorrespondenceDistance(100);//100
-        icp.setMaximumIterations(150);// 200
+        icp.setMaximumIterations(200);// 200
         icp.setTransformationEpsilon(1e-6);
         icp.setEuclideanFitnessEpsilon(1e-6);
         icp.setRANSACIterations(0);
@@ -1048,15 +1075,20 @@ public:
 
         // Eigen::Matrix4f guess = Eigen::Matrix4f::Identity();
         // PointTypePose t_prev = cloudKeyPoses6D->points[closestHistoryFrameID];
-        // tf::Quaternion q_prev = tf::createQuaternionFromRPY(t_prev.roll, t_prev.pitch, t_prev.yaw);
-        // Eigen::Quaternionf q(q_prev.w(), q_prev.x(), q_prev.y(), q_prev.z());
+    
+        // Eigen::Quaternionf q((Eigen::AngleAxisf(t_prev.pitch, Eigen::Vector3f::UnitY()) *
+        //                          Eigen::AngleAxisf(t_prev.roll, Eigen::Vector3f::UnitX()) * 
+        //                          Eigen::AngleAxisf(t_prev.yaw, Eigen::Vector3f::UnitZ())).matrix());
+
         // Eigen::Matrix4f prev = Eigen::Matrix4f::Identity();
         // prev.block<3,3>(0, 0) = q.matrix();
         // prev.block<3,1>(0, 3) = Eigen::Vector3f(t_prev.x, t_prev.y, t_prev.z);
 
         // PointTypePose t_curr = cloudKeyPoses6D->points[latestFrameIDLoopCloure];
-        // tf::Quaternion q_curr = tf::createQuaternionFromRPY(t_curr.roll, t_curr.pitch, t_curr.yaw);
-        // Eigen::Quaternionf q_c(q_curr.w(), q_curr.x(), q_curr.y(), q_curr.z());
+        // // tf::Quaternion q_curr = tf::createQuaternionFromRPY(t_curr.roll, t_curr.pitch, t_curr.yaw);
+        // Eigen::Quaternionf q_c((Eigen::AngleAxisf(t_curr.pitch, Eigen::Vector3f::UnitY()) *
+        //                          Eigen::AngleAxisf(t_curr.roll, Eigen::Vector3f::UnitX()) * 
+        //                          Eigen::AngleAxisf(t_curr.yaw, Eigen::Vector3f::UnitZ())).matrix());
         // Eigen::Matrix4f curr = Eigen::Matrix4f::Identity();
         // curr.block<3,3>(0, 0) = q_c.matrix();
         // curr.block<3,1>(0, 3) = Eigen::Vector3f(t_curr.x, t_curr.y, t_curr.z);
@@ -1069,13 +1101,28 @@ public:
         std::cout << "ssssss icp ::" << icp.getFitnessScore()<< std::endl;
         // std::cout << icp.getMaximumIterations() << std::endl;
         if (icp.hasConverged() == false || icp.getFitnessScore() > historyKeyframeFitnessScore)
-            return;
+        {
+            if(loop_buffers.empty())
+            {
+                loop_buffers.push_back(std::make_pair(latestFrameIDLoopCloure, closestHistoryFrameID));
+            }else
+            {
+                if((latestFrameIDLoopCloure - loop_buffers.back().first) < 5
+                 && (closestHistoryFrameID - loop_buffers.back().second) < 5)
+                loop_buffers.push_back(std::make_pair(latestFrameIDLoopCloure, closestHistoryFrameID));
+                else loop_buffers.clear();
+
+            }
+
+            if(loop_buffers.size() <= 4) 
+                return;            
+        }
 
         ROS_INFO("add a factor to graph! %f ", icp.getFitnessScore());
 
         visualization_msgs::Marker loop_marker;
         loop_marker.header.frame_id = "map";
-        loop_marker.header.stamp = ros::Time(timeimg);
+        loop_marker.header.stamp = ros::Time::now();
 
         loop_marker.ns = "loop";
         loop_marker.id = 2;
@@ -1136,7 +1183,20 @@ public:
         gtsam::Pose3 poseFrom = Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(x, y, z));
         gtsam::Pose3 poseTo = pclPointTogtsamPose3(cloudKeyPoses6D->points[closestHistoryFrameID]);
         gtsam::Vector Vector6(6);
-        float noiseScore = icp.getFitnessScore();
+        float noiseScore;
+        if(loop_buffers.size() <= 4)
+            noiseScore = icp.getFitnessScore();
+        else if(icp.getFitnessScore() < 10)
+        { 
+            noiseScore = 0.5;
+            loop_buffers.clear();
+            std::cout <<"lopppppppppppppppppppppp--------" << std::endl;
+        }
+        else
+        {
+            loop_buffers.clear();
+            return ;
+        }
         Vector6 << noiseScore, noiseScore, noiseScore, noiseScore, noiseScore, noiseScore;
         constraintNoise = noiseModel::Diagonal::Variances(Vector6);
 	/* 
@@ -1568,7 +1628,7 @@ public:
         bool saveThisKeyFrame = true;
         if (sqrt((previousRobotPosPoint.x-currentRobotPosPoint.x)*(previousRobotPosPoint.x-currentRobotPosPoint.x)
                 +(previousRobotPosPoint.y-currentRobotPosPoint.y)*(previousRobotPosPoint.y-currentRobotPosPoint.y)
-                +(previousRobotPosPoint.z-currentRobotPosPoint.z)*(previousRobotPosPoint.z-currentRobotPosPoint.z)) < 0.3){//1 for 16 0.3 or 1
+                +(previousRobotPosPoint.z-currentRobotPosPoint.z)*(previousRobotPosPoint.z-currentRobotPosPoint.z)) < 1){//1 for 16 0.3 or 1
             saveThisKeyFrame = false;
         }
 
@@ -1636,7 +1696,7 @@ public:
         // nav_msgs::Path
 
         geometry_msgs::PoseStamped curr_pose;
-        curr_pose.header.frame_id = "/camera";
+        curr_pose.header.frame_id = "/camera_init";
         curr_pose.pose.position.x = thisPose6D.x;
         curr_pose.pose.position.y = thisPose6D.y;
         curr_pose.pose.position.z = thisPose6D.z;
@@ -1652,13 +1712,13 @@ public:
         Rot3 r  = r2 * r1 * r3;
         Quaternion q(r.matrix());
         // Quaternion qq(rr.matrix());
-        // std::cout << q1.x() << " " <<-q1.z() << " " <<q1.x() << " "<<q1.w() <<std::endl;
+        // std::cout << q1.x() << " " << -q1.z() << " " <<q1.x() << " "<<q1.w() <<std::endl;
         // std::cout << q.coeffs ()  << std::endl;
         // std::cout << qq.coeffs ()  << std::endl;
-        curr_pose.pose.orientation.x = q.x();
-        curr_pose.pose.orientation.y = q.y();
-        curr_pose.pose.orientation.z = q.z();
-        curr_pose.pose.orientation.w = q.w();
+        curr_pose.pose.orientation.x = 0;
+        curr_pose.pose.orientation.y = 0;
+        curr_pose.pose.orientation.z = 0;
+        curr_pose.pose.orientation.w = 1;
 
         path_msg.poses.push_back(curr_pose);
 	/**
@@ -1686,14 +1746,20 @@ public:
         pcl::copyPointCloud(*laserCloudSurfLastDS,    *thisSurfKeyFrame);
         pcl::copyPointCloud(*laserCloudOutlierLastDS, *thisOutlierKeyFrame);
 
+        if(newcloudsave)
+        {
+            pcl::io::savePCDFileBinary("/media/yingwang/DATADisk/dp/dp" + std::to_string(current_frame_id++) + ".pcd", *cloud_to_save);
+            newcloudsave = false;
+        }
+
         cornerCloudKeyFrames.push_back(thisCornerKeyFrame);
         surfCloudKeyFrames.push_back(thisSurfKeyFrame);
         outlierCloudKeyFrames.push_back(thisOutlierKeyFrame);
 
         // std::cout << timeimg << " " << timeLaserCloudCornerLast << std::endl;
         
-        if(newimg && timeimg - timeLaserCloudCornerLast < 0.05)
-        // if(newimg)
+        // if(newimg && timeimg - timeLaserCloudCornerLast < 0.05)
+        if(newimg)
         {
             wy::KeyFrame* kf = new wy::KeyFrame(img, porb_vocabulary, porb_extractor, cloudKeyPoses3D->points.size() - 1);
             kf->extracORBFeaturs();
@@ -1704,9 +1770,9 @@ public:
             newimg = false;
             ROS_INFO("Add an image to db");
 
-            sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", color_).toImageMsg();
             if(image_pub_.getNumSubscribers () )
             {
+                sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", color_).toImageMsg();
                 image_pub_.publish(msg);
             }
             // std::cout << testnum++ << std::endl;
@@ -1750,10 +1816,10 @@ public:
         curr_pose.pose.position.z = thisPose6D.z;
 
         tf::Quaternion quat = tf::createQuaternionFromRPY(thisPose6D.pitch, thisPose6D.roll, thisPose6D.yaw);
-        curr_pose.pose.orientation.x = quat.x();
-        curr_pose.pose.orientation.y = quat.y();
-        curr_pose.pose.orientation.z = quat.z();
-        curr_pose.pose.orientation.w = quat.w();
+        curr_pose.pose.orientation.x = 0;
+        curr_pose.pose.orientation.y = 0;
+        curr_pose.pose.orientation.z = 0;
+        curr_pose.pose.orientation.w = 1;
 
         path_msg.poses.push_back(curr_pose);
         }

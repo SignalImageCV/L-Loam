@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   cloud_msgs
   visualization_msgs
+  nodelet
 )
 
 find_package(GTSAM REQUIRED QUIET)

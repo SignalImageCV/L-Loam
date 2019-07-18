@@ -50,8 +50,8 @@ using namespace std;
 
 typedef pcl::PointXYZI  PointType;
 
-extern const string pointCloudTopic = "/kitti/velo/pointcloud";
-extern const string imageTopic = "/kitti/camera_color_left/image_raw";
+extern const string pointCloudTopic = "/velodyne_points";
+extern const string imageTopic = "/camera/image_left";
 // extern const string imageTopic = "/camera/image_left";
 // extern const string pointCloudTopic = "/velodyne_points";
 extern const string imuTopic = "/imu/data";
@@ -63,9 +63,9 @@ extern const string fileDirectory = "/home/yingwang/map/";
 // VLP-16
 extern const int N_SCAN = 16;
 extern const int Horizon_SCAN = 2000;
-// extern const float ang_res_x = 0.2;
-// extern const float ang_res_y = 2.0;
-// extern const float ang_bottom = 15.0+0.1;
+extern const float ang_res_x = 0.2;
+extern const float ang_res_y = 2.0;
+extern const float ang_bottom = 15.0+0.1;
 extern const int groundScanInd = 5;
 
 // HDL-32E
@@ -89,9 +89,9 @@ extern const int groundScanInd = 5;
 // Ouster OS1-64
 // extern const int N_SCAN = 64;
 // extern const int Horizon_SCAN = 2000;
-extern const float ang_res_x = 360.0/float(Horizon_SCAN);
-extern const float ang_res_y = 26.8/float(64-1);
-extern const float ang_bottom = 24.8; //24.8
+// extern const float ang_res_x = 360.0/float(Horizon_SCAN);
+// extern const float ang_res_y = 26.8/float(64-1);
+// extern const float ang_bottom = 24.8; //24.8
 // extern const int groundScanInd = 30;
 
 extern const bool loopClosureEnableFlag = true;
@@ -103,8 +103,8 @@ extern const int imuQueLength = 200;
 
 extern const float sensorMountAngle = 0.0;
 extern const float segmentTheta = 60.0/180.0*M_PI; // decrese this value may improve accuracy
-extern const int segmentValidPointNum = 3;//5
-extern const int segmentValidLineNum = 0; //3
+extern const int segmentValidPointNum = 5;//5
+extern const int segmentValidLineNum = 3; //3
 extern const float segmentAlphaX = ang_res_x / 180.0 * M_PI;
 extern const float segmentAlphaY = ang_res_y / 180.0 * M_PI;
 
